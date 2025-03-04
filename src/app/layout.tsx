@@ -1,13 +1,4 @@
 import "./globals.css";
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Network Observability Platform",
-  description: "Monitor, query, and analyze your network traffic with ease",
-};
 
 export default function RootLayout({
   children,
@@ -16,7 +7,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className="font-sans antialiased">
+        <div className="min-h-screen bg-gray-50">{children}</div>
+      </body>
     </html>
   );
 }
