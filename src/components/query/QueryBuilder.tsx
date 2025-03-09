@@ -1,273 +1,411 @@
 // src/components/query/QueryBuilder.tsx
+// src/components/query/QueryBuilder.tsx
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, HelpCircle, Play, Plus, X } from "lucide-react";
-import { QueryParams } from "@/types";
+import {
+  ChevronDown,
+  HelpCircle,
+  Play,
+  Plus,
+  X,
+  Search,
+  Clock,
+  BarChart2,
+  LineChart,
+  PieChart,
+  Filter,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import WhereCondition from "@/components/query/WhereCondition";
-import GroupBySelector from "@/components/query/GroupBySelector";
+import WhereCondition from "./WhereCondition";
+import GroupBySelector from "./GroupBySelector";
 
-interface QueryBuilderProps {
-  onRunQuery: (params: QueryParams) => void;
+// Import QueryConfig from a shared types file instead of Dashboard
+import { QueryConfig } from "@/lib/mockData";
+
+// Type definitions for filter options
+type FilterOptionType =
+  | "threshold"
+  | "device_type"
+  | "protocol"
+  | "error_type"
+  | "location"
+  | "device"
+  | "interface"
+  | "severity"
+  | "status"
+  | "port";
+
+interface FilterOption {
+  label: string;
+  value: string;
 }
 
-export default function QueryBuilder({ onRunQuery }: QueryBuilderProps) {
-  const [dataSource, setDataSource] = useState<string>("network-flows");
-  const [visualizeFields, setVisualizeFields] = useState<string[]>([
-    "COUNT",
-    "AVG(latency)",
-  ]);
-  const [whereConditions, setWhereConditions] = useState<string[]>([]);
-  const [groupBy, setGroupBy] = useState<string>("");
-  const [orderBy, setOrderBy] = useState<string>("COUNT DESC");
-  const [limit, setLimit] = useState<number>(1000);
-  const [timeRange, setTimeRange] = useState<string>("Last 24 hours");
+// Predefined queries with proper context
+const PREDEFINED_QUERIES = [
+  {
+    id: "bandwidth_usage",
+    category: "Performance",
+    name: "Bandwidth Usage Analysis",
+    description: "Monitor bandwidth consumption patterns",
+    availableMetrics: ["inbound", "outbound", "total"],
+    defaultTimeRange: "last_24h",
+    applicableFilters: [
+      "threshold",
+      "device",
+      "interface",
+    ] as FilterOptionType[],
+  },
+  {
+    id: "network_errors",
+    category: "Troubleshooting",
+    name: "Network Error Analysis",
+    description: "Analyze network errors and their distribution",
+    availableMetrics: ["crc_errors", "fragments", "collisions"],
+    defaultTimeRange: "last_6h",
+    applicableFilters: [
+      "error_type",
+      "severity",
+      "device",
+    ] as FilterOptionType[],
+  },
+  {
+    id: "traffic_patterns",
+    category: "Analysis",
+    name: "Traffic Pattern Analysis",
+    description: "Analyze traffic patterns by protocol and port",
+    availableMetrics: ["bytes", "packets", "flows"],
+    defaultTimeRange: "last_12h",
+    applicableFilters: ["protocol", "port", "device"] as FilterOptionType[],
+  },
+  {
+    id: "device_health",
+    category: "Monitoring",
+    name: "Device Health Metrics",
+    description: "Monitor device health and performance",
+    availableMetrics: ["cpu", "memory", "temperature"],
+    defaultTimeRange: "last_1h",
+    applicableFilters: [
+      "device_type",
+      "location",
+      "status",
+    ] as FilterOptionType[],
+  },
+];
 
-  const handleAddVisualizeField = (field: string) => {
-    if (!visualizeFields.includes(field) && field.trim() !== "") {
-      setVisualizeFields([...visualizeFields, field]);
-    }
-  };
+// Filter options based on context
+const FILTER_OPTIONS: Record<FilterOptionType, FilterOption[]> = {
+  threshold: [
+    { label: "High Usage (>90%)", value: "utilization > 90" },
+    { label: "Medium Usage (50-90%)", value: "utilization BETWEEN 50 AND 90" },
+    { label: "Low Usage (<50%)", value: "utilization < 50" },
+  ],
+  device_type: [
+    { label: "Routers", value: 'type = "router"' },
+    { label: "Switches", value: 'type = "switch"' },
+    { label: "Firewalls", value: 'type = "firewall"' },
+    { label: "Servers", value: 'type = "server"' },
+  ],
+  protocol: [
+    { label: "HTTP/HTTPS", value: 'protocol IN ("HTTP", "HTTPS")' },
+    { label: "TCP", value: 'protocol = "TCP"' },
+    { label: "UDP", value: 'protocol = "UDP"' },
+    { label: "ICMP", value: 'protocol = "ICMP"' },
+  ],
+  error_type: [
+    { label: "CRC Errors", value: 'error_type = "CRC"' },
+    { label: "Fragments", value: 'error_type = "Fragment"' },
+    { label: "Collisions", value: 'error_type = "Collision"' },
+  ],
+  location: [
+    { label: "Data Center North", value: 'location = "DC-North"' },
+    { label: "Data Center South", value: 'location = "DC-South"' },
+    { label: "Edge Locations", value: 'location LIKE "Edge%"' },
+  ],
+  device: [
+    { label: "Core Routers", value: 'device_id LIKE "r%"' },
+    { label: "Switches", value: 'device_id LIKE "s%"' },
+    { label: "Firewalls", value: 'device_id LIKE "f%"' },
+    { label: "Servers", value: 'device_id LIKE "srv%"' },
+  ],
+  interface: [
+    { label: "Ethernet", value: 'interface_type = "ethernet"' },
+    { label: "Fiber", value: 'interface_type = "fiber"' },
+    { label: "Wireless", value: 'interface_type = "wireless"' },
+  ],
+  severity: [
+    { label: "High", value: 'severity = "high"' },
+    { label: "Medium", value: 'severity = "medium"' },
+    { label: "Low", value: 'severity = "low"' },
+  ],
+  status: [
+    { label: "Active", value: 'status = "active"' },
+    { label: "Inactive", value: 'status = "inactive"' },
+    { label: "Maintenance", value: 'status = "maintenance"' },
+  ],
+  port: [
+    { label: "HTTP (80)", value: "port = 80" },
+    { label: "HTTPS (443)", value: "port = 443" },
+    { label: "DNS (53)", value: "port = 53" },
+    { label: "SSH (22)", value: "port = 22" },
+  ],
+};
 
-  const handleRemoveVisualizeField = (index: number) => {
-    const newFields = [...visualizeFields];
-    newFields.splice(index, 1);
-    setVisualizeFields(newFields);
-  };
+// Time range options
+const TIME_RANGES = [
+  { label: "Last 30 minutes", value: "last_30m" },
+  { label: "Last hour", value: "last_1h" },
+  { label: "Last 6 hours", value: "last_6h" },
+  { label: "Last 12 hours", value: "last_12h" },
+  { label: "Last 24 hours", value: "last_24h" },
+  { label: "Last 7 days", value: "last_7d" },
+];
 
-  const handleAddWhereCondition = (condition: string) => {
-    if (condition.trim() !== "") {
-      setWhereConditions([...whereConditions, condition]);
-    }
-  };
+// Visualization options
+const VISUALIZATION_TYPES = [
+  { icon: LineChart, label: "Line Chart", value: "line" },
+  { icon: BarChart2, label: "Bar Chart", value: "bar" },
+  { icon: PieChart, label: "Pie Chart", value: "pie" },
+];
 
-  const handleRemoveWhereCondition = (index: number) => {
-    const newConditions = [...whereConditions];
-    newConditions.splice(index, 1);
-    setWhereConditions(newConditions);
-  };
+interface QueryBuilderProps {
+  onExecute: (config: QueryConfig) => void;
+}
 
-  const handleRunQuery = () => {
-    onRunQuery({
-      dataSource,
-      visualizeFields,
-      whereConditions,
-      groupBy,
-      orderBy,
-      limit,
+export function QueryBuilder({ onExecute }: QueryBuilderProps) {
+  const [selectedQuery, setSelectedQuery] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showQueryDropdown, setShowQueryDropdown] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [timeRange, setTimeRange] = useState("last_24h");
+  const [visualization, setVisualization] = useState<"line" | "bar" | "pie">(
+    "line"
+  );
+  const [groupByOptions, setGroupByOptions] = useState<string[]>([]);
+
+  // Get the current query definition
+  const currentQuery = PREDEFINED_QUERIES.find((q) => q.id === selectedQuery);
+
+  // Filter available filters based on current query
+  const availableFilters =
+    currentQuery?.applicableFilters.map((filterType) => ({
+      type: filterType,
+      options: FILTER_OPTIONS[filterType],
+    })) || [];
+
+  const handleExecute = () => {
+    if (!currentQuery) return;
+
+    onExecute({
+      query: {
+        id: currentQuery.id,
+        metrics: currentQuery.availableMetrics,
+        timeRange,
+        filters: selectedFilters,
+        groupBy: groupByOptions,
+      },
+      visualization,
       timeRange,
     });
   };
 
+  const handleGroupByChange = (options: string[]) => {
+    setGroupByOptions(options);
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Data Source */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            DATA SOURCE
-          </label>
-          <div className="relative">
-            <select
-              value={dataSource}
-              onChange={(e) => setDataSource(e.target.value)}
-              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            >
-              <option value="network-flows">Network Flows</option>
-              <option value="dhcp-logs">DHCP Logs</option>
-              <option value="dns-queries">DNS Queries</option>
-              <option value="security-events">Security Events</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-              <ChevronDown className="h-4 w-4" />
+    <div className="space-y-6">
+      {/* Query Selection */}
+      <div className="relative">
+        <div
+          className="p-4 border rounded-lg cursor-pointer hover:border-blue-500"
+          onClick={() => setShowQueryDropdown(!showQueryDropdown)}
+        >
+          {currentQuery ? (
+            <div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium">{currentQuery.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {currentQuery.description}
+                  </p>
+                </div>
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              </div>
+              <div className="mt-2 flex gap-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {currentQuery.category}
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="text-gray-500">Select a query template...</div>
+          )}
         </div>
 
-        {/* Time Range */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            TIME RANGE
-          </label>
-          <div className="relative">
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="block w-full border border-gray-300 rounded-md shadow-sm py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            >
-              <option>Last 15 minutes</option>
-              <option>Last hour</option>
-              <option>Last 6 hours</option>
-              <option>Last 24 hours</option>
-              <option>Last 7 days</option>
-              <option>Custom range</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-              <ChevronDown className="h-4 w-4" />
+        {showQueryDropdown && (
+          <div className="absolute z-10 w-full mt-2 bg-white border rounded-lg shadow-lg">
+            <div className="p-2 border-b">
+              <div className="flex items-center px-3 py-2 border rounded-md">
+                <Search className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  className="w-full ml-2 focus:outline-none"
+                  placeholder="Search queries..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* Visualize */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-700">
-              VISUALIZE
-            </label>
-            {visualizeFields.length > 0 && (
-              <button
-                className="text-xs text-green-700 font-medium flex items-center"
-                onClick={() => {
-                  const input = document.getElementById(
-                    "visualize-input"
-                  ) as HTMLInputElement;
-                  if (input) input.focus();
-                }}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Field
-              </button>
-            )}
-          </div>
-          <div className="border border-gray-300 rounded-md p-3 bg-white">
-            <div className="flex flex-wrap gap-2 mb-2">
-              {visualizeFields.map((field, index) => (
+            <div className="max-h-64 overflow-y-auto">
+              {PREDEFINED_QUERIES.filter(
+                (q) =>
+                  q.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  q.description
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase()) ||
+                  q.category.toLowerCase().includes(searchTerm.toLowerCase())
+              ).map((query) => (
                 <div
-                  key={index}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-sm"
+                  key={query.id}
+                  className="p-3 cursor-pointer hover:bg-gray-50"
+                  onClick={() => {
+                    setSelectedQuery(query.id);
+                    setShowQueryDropdown(false);
+                    setSelectedFilters([]);
+                    setTimeRange(query.defaultTimeRange);
+                  }}
                 >
-                  <span>{field}</span>
-                  <button
-                    onClick={() => handleRemoveVisualizeField(index)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                  <h3 className="font-medium">{query.name}</h3>
+                  <p className="text-sm text-gray-500">{query.description}</p>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
+                    {query.category}
+                  </span>
                 </div>
               ))}
             </div>
-            <div
-              className={cn(
-                "mt-2",
-                visualizeFields.length > 0 && "border-t border-gray-200 pt-2"
-              )}
-            >
-              <input
-                id="visualize-input"
-                className="w-full p-1 text-sm focus:outline-none placeholder:text-gray-400"
-                placeholder="Add a field or metric..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && e.currentTarget.value) {
-                    handleAddVisualizeField(e.currentTarget.value);
-                    e.currentTarget.value = "";
-                  }
-                }}
-              />
-            </div>
           </div>
-        </div>
-
-        {/* Where */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-700">
-              WHERE
-            </label>
-            <div className="flex items-center space-x-2 bg-gray-100 rounded px-2 py-1">
-              <span className="text-xs font-medium text-gray-700">AND</span>
-              <ChevronDown className="h-3 w-3 text-gray-500" />
-            </div>
-          </div>
-          <div className="border border-gray-300 rounded-md p-3 bg-white">
-            {whereConditions.length > 0 ? (
-              <div className="flex flex-col gap-2 mb-2">
-                {whereConditions.map((condition, index) => (
-                  <WhereCondition
-                    key={index}
-                    condition={condition}
-                    onRemove={() => handleRemoveWhereCondition(index)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-gray-500 text-xs py-2 border border-dashed border-gray-300 rounded mb-2">
-                No conditions - return all results
-              </div>
-            )}
-            <div
-              className={cn(
-                "mt-2",
-                whereConditions.length > 0 && "border-t border-gray-200 pt-2"
-              )}
-            >
-              <input
-                className="w-full p-1 text-sm focus:outline-none placeholder:text-gray-400"
-                placeholder="Add a filter (e.g. bytes > 1000)..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && e.currentTarget.value) {
-                    handleAddWhereCondition(e.currentTarget.value);
-                    e.currentTarget.value = "";
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Group By */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            GROUP BY
-          </label>
-          <GroupBySelector value={groupBy} onChange={setGroupBy} />
-        </div>
-
-        {/* Order By */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            ORDER BY
-          </label>
-          <input
-            className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            value={orderBy}
-            onChange={(e) => setOrderBy(e.target.value)}
-            placeholder="e.g. COUNT DESC"
-          />
-        </div>
-
-        {/* Limit */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            LIMIT
-          </label>
-          <input
-            type="number"
-            className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            value={limit}
-            onChange={(e) => setLimit(parseInt(e.target.value) || 0)}
-            min="1"
-            max="10000"
-          />
-        </div>
+        )}
       </div>
 
-      {/* Query Controls */}
-      <div className="border-t border-gray-200 bg-gray-50 px-6 py-3 flex items-center justify-between rounded-b-lg">
-        <div className="flex items-center text-sm text-gray-600">
-          <a href="#" className="flex items-center hover:text-green-700">
-            <HelpCircle className="h-4 w-4 mr-1" />
-            <span className="text-sm">Query Help</span>
-          </a>
-        </div>
-        <div className="flex items-center">
-          <Button className="font-medium" onClick={handleRunQuery}>
-            <Play className="h-4 w-4 mr-2" />
-            Run Query
-          </Button>
-        </div>
-      </div>
+      {currentQuery && (
+        <>
+          {/* Time Range Selection */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Time Range</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {TIME_RANGES.map((range) => (
+                <Button
+                  key={range.value}
+                  variant={timeRange === range.value ? "default" : "outline"}
+                  onClick={() => setTimeRange(range.value)}
+                  className="justify-start"
+                >
+                  {range.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium">Filters</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {availableFilters.map(({ type, options }) => (
+                <div key={type} className="space-y-2">
+                  <h4 className="text-sm font-medium capitalize">
+                    {type.replace("_", " ")}
+                  </h4>
+                  <div className="space-y-2 border rounded-md p-3">
+                    {options.map((option) => (
+                      <label
+                        key={option.value}
+                        className="flex items-center space-x-2"
+                      >
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300"
+                          checked={selectedFilters.includes(option.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFilters([
+                                ...selectedFilters,
+                                option.value,
+                              ]);
+                            } else {
+                              setSelectedFilters(
+                                selectedFilters.filter(
+                                  (f) => f !== option.value
+                                )
+                              );
+                            }
+                          }}
+                        />
+                        <span className="text-sm">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Group By (if applicable) */}
+          {["bandwidth_usage", "network_errors"].includes(currentQuery.id) && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Group By</h3>
+              <GroupBySelector
+                onChange={handleGroupByChange}
+                options={[
+                  { label: "Device", value: "device" },
+                  { label: "Location", value: "location" },
+                  { label: "Time", value: "time" },
+                ]}
+              />
+            </div>
+          )}
+
+          {/* Visualization Type */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Visualization</h3>
+            <div className="flex gap-2">
+              {VISUALIZATION_TYPES.map((type) => (
+                <Button
+                  key={type.value}
+                  variant={visualization === type.value ? "default" : "outline"}
+                  onClick={() =>
+                    setVisualization(type.value as "line" | "bar" | "pie")
+                  }
+                  className="flex items-center gap-2"
+                >
+                  <type.icon className="w-4 h-4" />
+                  {type.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Execute Button */}
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedQuery("");
+                setSelectedFilters([]);
+                setTimeRange("last_24h");
+                setVisualization("line");
+                setGroupByOptions([]);
+              }}
+            >
+              Clear
+            </Button>
+            <Button onClick={handleExecute}>Run Query</Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
+export default QueryBuilder;

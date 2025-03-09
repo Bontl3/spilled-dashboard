@@ -1,129 +1,41 @@
-// Network Types
-export interface Node {
-  id: string;
-  label: string;
-  type: "router" | "switch" | "server" | "client";
-  status: "active" | "inactive" | "warning" | "error";
-  ipAddress?: string;
-  location?: string;
+// /src/lib/mockData/generators.ts
+import {
+  Device,
+  NetworkData,
+  MetricData,
+  ErrorData,
+  TrafficData,
+  BandwidthData,
+  NetworkDevice,
+  TrafficFlow,
+  NetworkMetrics,
+  Protocol,
+  ErrorType,
+  SeverityLevel,
+} from "@/types/network";
+
+// Helper functions
+function randomChoice<T>(array: readonly T[]): T {
+  return array[Math.floor(Math.random() * array.length)];
 }
 
-export interface Edge {
-  id: string;
-  source: string;
-  target: string;
-  bandwidth: string;
-  latency?: number;
-  status: "active" | "congested" | "down";
-}
+const generateRandomId = () => Math.random().toString(36).substring(2, 9);
 
-export interface NetworkMetrics {
-  timestamp: string;
-  bandwidth: {
-    current: number;
-    max: number;
-    unit: "Mbps" | "Gbps";
-    utilization: number;
-  };
-  latency: {
-    current: number;
-    min: number;
-    max: number;
-    unit: "ms";
-  };
-  packetLoss: {
-    current: number;
-    threshold: number;
-    unit: "%";
-  };
-  errors: {
-    crc: number;
-    fragments: number;
-    collisions: number;
-  };
-}
+const generateRandomNumber = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
 
-export interface NetworkData {
-  devices: Array<{
-    id: string;
-    name: string;
-    type: "router" | "switch" | "firewall" | "server";
-    location: string;
-    status: "active" | "inactive" | "maintenance";
-  }>;
-  metrics: Array<{
-    deviceId: string;
-    timestamp: string;
-    cpu: number;
-    memory: number;
-    bandwidth: {
-      inbound: number;
-      outbound: number;
-    };
-    temperature: number;
-  }>;
-  errors: Array<{
-    deviceId: string;
-    timestamp: string;
-    type: "CRC" | "Fragment" | "Collision";
-    severity: "low" | "medium" | "high";
-    count: number;
-  }>;
-  traffic: Array<{
-    deviceId: string;
-    timestamp: string;
-    protocol: "HTTP" | "HTTPS" | "TCP" | "UDP" | "ICMP";
-    bytes: number;
-    packets: number;
-    flows: number;
-  }>;
-}
+const generateTimeSeriesData = (hours: number): string[] => {
+  const now = new Date();
+  return Array.from({ length: hours }, (_, i) => {
+    const date = new Date(now.getTime() - i * 60 * 60 * 1000);
+    return date.toISOString();
+  }).reverse();
+};
 
-// First, export all the base types
-export interface Device {
-  id: string;
-  name: string;
-  type: "router" | "switch" | "firewall" | "server";
-  location: string;
-  status: "active" | "inactive" | "maintenance";
-}
-
-export interface MetricData {
-  deviceId: string;
-  timestamp: string;
-  cpu: number;
-  memory: number;
-  bandwidth: {
-    inbound: number;
-    outbound: number;
-  };
-  temperature: number;
-}
-
-export interface ErrorData {
-  deviceId: string;
-  timestamp: string;
-  type: "CRC" | "Fragment" | "Collision";
-  severity: "low" | "medium" | "high";
-  count: number;
-}
-
-export interface TrafficData {
-  deviceId: string;
-  timestamp: string;
-  protocol: Protocol;
-  bytes: number;
-  packets: number;
-  flows: number;
-}
-
-// First, define all the data types
-export interface BandwidthData {
-  timestamp: string;
-  inbound: number;
-  outbound: number;
-  total: number;
-}
+const generateColor = () =>
+  `#${Math.floor(Math.random() * 16777215)
+    .toString(16)
+    .padStart(6, "0")}`;
 
 // Mock Data Generators
 const generateRandomIP = () =>
@@ -131,6 +43,17 @@ const generateRandomIP = () =>
 
 const generateRandomBandwidth = () =>
   `${Math.floor(Math.random() * 10)}${Math.random() > 0.5 ? "Gbps" : "Mbps"}`;
+
+const randomIP = () =>
+  Array.from({ length: 4 }, () => Math.floor(Math.random() * 256)).join(".");
+
+const randomPort = () => Math.floor(Math.random() * (65535 - 1024) + 1024);
+
+const randomDate = (start: Date, end: Date) => {
+  return new Date(
+    start.getTime() + Math.random() * (end.getTime() - start.getTime())
+  ).toISOString();
+};
 
 export function generateNetworkTopology(
   nodeCount: number = 10,
@@ -223,14 +146,8 @@ export function generateCompleteNetworkData(): NetworkData {
         errors.push({
           deviceId: device.id,
           timestamp,
-          type: ["CRC", "Fragment", "Collision"][generateRandomNumber(0, 2)] as
-            | "CRC"
-            | "Fragment"
-            | "Collision",
-          severity: ["low", "medium", "high"][generateRandomNumber(0, 2)] as
-            | "low"
-            | "medium"
-            | "high",
+          type: randomChoice(["CRC", "Fragment", "Collision"] as ErrorType[]),
+          severity: randomChoice(["low", "medium", "high"] as SeverityLevel[]),
           count: generateRandomNumber(1, 10),
         });
       }
@@ -278,48 +195,6 @@ export function generateMockAlerts(count: number): Alert[] {
   }));
 }
 
-// Types
-export interface NetworkDevice {
-  id: string;
-  name: string;
-  type: "router" | "switch" | "server" | "client" | "firewall";
-  status: "active" | "inactive" | "maintenance" | "error";
-  ipAddress: string;
-  location: string;
-  lastSeen: string;
-  metrics: {
-    cpu: number;
-    memory: number;
-    diskUsage: number;
-    temperature: number;
-  };
-}
-
-export interface TrafficFlow {
-  id: string;
-  source: string;
-  destination: string;
-  protocol: "TCP" | "UDP" | "ICMP" | "HTTP" | "HTTPS";
-  port: number;
-  bytesTransferred: number;
-  packetsTransferred: number;
-  timestamp: string;
-  duration: number; // in milliseconds
-}
-
-// Helper functions
-const randomIP = () =>
-  Array.from({ length: 4 }, () => Math.floor(Math.random() * 256)).join(".");
-
-const randomPort = () => Math.floor(Math.random() * (65535 - 1024) + 1024);
-
-const randomDate = (start: Date, end: Date) => {
-  return new Date(
-    start.getTime() + Math.random() * (end.getTime() - start.getTime())
-  ).toISOString();
-};
-
-// Mock data generators
 export function generateMockDevices(count: number = 10): NetworkDevice[] {
   const deviceTypes: NetworkDevice["type"][] = [
     "router",
@@ -434,6 +309,15 @@ export function generateMockMetricsTimeSeries(
 
 // Generate aggregated statistics
 export function generateNetworkStats(metrics: NetworkMetrics[]) {
+  if (!metrics || metrics.length === 0) {
+    return {
+      bandwidth: { peak: 0, average: 0, current: 0, unit: "Mbps" },
+      latency: { min: 0, max: 0, average: 0, unit: "ms" },
+      packetLoss: { average: 0, threshold: 2.0, unit: "%" },
+      errors: { total: 0, breakdown: { crc: 0, fragments: 0, collisions: 0 } },
+    };
+  }
+
   return {
     bandwidth: {
       peak: Math.max(...metrics.map((m) => m.bandwidth.current)),
@@ -482,35 +366,16 @@ export function generateNetworkStats(metrics: NetworkMetrics[]) {
   };
 }
 
-// Add helper functions at the top
-function randomChoice<T>(array: readonly T[]): T {
-  return array[Math.floor(Math.random() * array.length)];
-}
-
-// Define constants
-const ERROR_TYPES = ["CRC", "Fragment", "Collision"] as const;
-type ErrorType = (typeof ERROR_TYPES)[number];
-
-const SEVERITY_LEVELS = ["low", "medium", "high"] as const;
-type SeverityLevel = (typeof SEVERITY_LEVELS)[number];
-
-const PROTOCOLS = ["HTTP", "HTTPS", "TCP", "UDP", "ICMP"] as const;
-type Protocol = (typeof PROTOCOLS)[number];
-
-export interface ErrorData {
-  deviceId: string;
-  timestamp: string;
-  type: ErrorType;
-  severity: SeverityLevel;
-  count: number;
-}
-
 function generateErrorData(count: number, devices: Device[]): ErrorData[] {
+  if (!devices || devices.length === 0) {
+    return [];
+  }
+
   const now = new Date();
 
   return Array.from({ length: count }, (_, i) => ({
-    type: randomChoice(ERROR_TYPES),
-    severity: randomChoice(SEVERITY_LEVELS),
+    type: randomChoice(["CRC", "Fragment", "Collision"] as ErrorType[]),
+    severity: randomChoice(["low", "medium", "high"] as SeverityLevel[]),
     count: Math.floor(Math.random() * 100),
     deviceId: randomChoice(devices).id,
     timestamp: new Date(now.getTime() - i * 300000).toISOString(), // Every 5 minutes
@@ -518,10 +383,14 @@ function generateErrorData(count: number, devices: Device[]): ErrorData[] {
 }
 
 // Helper function for mock bandwidth
-function generateMockBandwidth(
+export function generateMockBandwidth(
   hours: number,
   devices: NetworkDevice[]
 ): BandwidthData[] {
+  if (!devices || devices.length === 0) {
+    return [];
+  }
+
   const now = new Date();
   const data: BandwidthData[] = [];
 
@@ -530,11 +399,15 @@ function generateMockBandwidth(
       const hour = new Date(now.getTime() - i * 3600000).getHours();
       const businessHoursFactor = hour >= 9 && hour <= 17 ? 1.5 : 0.5;
 
+      const inbound = Math.floor(Math.random() * 1000 * businessHoursFactor);
+      const outbound = Math.floor(Math.random() * 1000 * businessHoursFactor);
+
       data.push({
         timestamp: new Date(now.getTime() - i * 3600000).toISOString(),
-        inbound: Math.floor(Math.random() * 1000 * businessHoursFactor),
-        outbound: Math.floor(Math.random() * 1000 * businessHoursFactor),
-        device: device.id,
+        inbound,
+        outbound,
+        total: inbound + outbound,
+        deviceId: device.id,
       });
     }
   });
@@ -542,140 +415,7 @@ function generateMockBandwidth(
   return data;
 }
 
-// Add QueryConfig type to match Dashboard and QueryBuilder
-export interface QueryConfig {
-  query: {
-    id: string;
-    metrics: string[];
-    timeRange: string;
-    filters: string[];
-    groupBy: string[];
-  };
-  visualization: "line" | "bar" | "pie";
-  timeRange: string;
-}
-
-export interface Dataset {
-  label: string;
-  data: number[];
-  backgroundColor?: string | string[];
-  borderColor?: string;
-  fill?: boolean;
-}
-
-export interface QueryResult {
-  visualization: "line" | "bar" | "pie";
-  data: {
-    labels: string[];
-    datasets: Array<{
-      label: string;
-      data: number[];
-      backgroundColor?: string | string[];
-      borderColor?: string;
-      fill?: boolean;
-    }>;
-  };
-}
-
-// Update simulateQueryResults to use the QueryResult type
-export async function simulateQueryResults(
-  config: QueryConfig,
-  networkData: NetworkData
-): Promise<QueryResult> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  const timeLabels = generateTimeSeriesData(24).map((timestamp) =>
-    new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  );
-
-  // Process data based on query type
-  let datasets: Dataset[] = [];
-
-  switch (config.query.id) {
-    case "bandwidth_usage":
-      datasets = config.query.metrics.map((metric) => ({
-        label:
-          metric === "total"
-            ? "Total Bandwidth"
-            : `${metric.charAt(0).toUpperCase() + metric.slice(1)} Traffic`,
-        data: networkData.metrics
-          .slice(-24)
-          .map((m) =>
-            metric === "total"
-              ? m.bandwidth.inbound + m.bandwidth.outbound
-              : m.bandwidth[metric as "inbound" | "outbound"]
-          ),
-        borderColor: generateColor(),
-        fill: false,
-      }));
-      break;
-
-    case "network_errors":
-      datasets = [
-        {
-          label: "Error Count",
-          data: networkData.errors.slice(-24).map((e) => e.count),
-          backgroundColor: networkData.errors
-            .slice(-24)
-            .map((e) =>
-              e.severity === "high"
-                ? "#ef4444"
-                : e.severity === "medium"
-                ? "#f59e0b"
-                : "#10b981"
-            ),
-        },
-      ];
-      break;
-
-    // Add more cases as needed
-    default:
-      datasets = [
-        {
-          label: "Default Data",
-          data: Array(24)
-            .fill(0)
-            .map(() => generateRandomNumber(0, 100)),
-          borderColor: "#3b82f6",
-          fill: false,
-        },
-      ];
-  }
-
-  return {
-    visualization: config.visualization,
-    data: {
-      labels: timeLabels,
-      datasets,
-    },
-  };
-}
-
-// Helper functions
-const generateRandomId = () => Math.random().toString(36).substr(2, 9);
-
-const generateRandomNumber = (min: number, max: number) =>
-  Math.floor(Math.random() * (max - min + 1)) + min;
-
-const generateTimeSeriesData = (hours: number): string[] => {
-  const now = new Date();
-  return Array.from({ length: hours }, (_, i) => {
-    const date = new Date(now.getTime() - i * 60 * 60 * 1000);
-    return date.toISOString();
-  }).reverse();
-};
-
-const generateColor = () =>
-  `#${Math.floor(Math.random() * 16777215)
-    .toString(16)
-    .padStart(6, "0")}`;
-
-// Update the function to use the BandwidthData type
-function generateBandwidthData(hours: number): BandwidthData[] {
+export function generateBandwidthData(hours: number): BandwidthData[] {
   return Array.from({ length: hours }, (_, i) => {
     const inbound = generateRandomNumber(100, 1000);
     const outbound = generateRandomNumber(100, 1000);
@@ -689,13 +429,25 @@ function generateBandwidthData(hours: number): BandwidthData[] {
 }
 
 function generateTrafficData(device: Device, timestamp: string): TrafficData {
+  if (!device || !timestamp) {
+    throw new Error(
+      "Device and timestamp are required for traffic data generation"
+    );
+  }
+
   const hour = new Date(timestamp).getHours();
   const businessHoursFactor = hour >= 9 && hour <= 17 ? 1.5 : 1.0;
 
   return {
     deviceId: device.id,
     timestamp,
-    protocol: randomChoice(PROTOCOLS),
+    protocol: randomChoice([
+      "HTTP",
+      "HTTPS",
+      "TCP",
+      "UDP",
+      "ICMP",
+    ] as Protocol[]),
     bytes: Math.floor(Math.random() * 1000 * businessHoursFactor),
     packets: generateRandomNumber(100, 1000),
     flows: generateRandomNumber(10, 100),

@@ -1,4 +1,10 @@
 import "./globals.css";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Network Observability",
+  description: "Network monitoring and analysis dashboard",
+};
 
 export default function RootLayout({
   children,
@@ -7,9 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">
-        <div className="min-h-screen bg-gray-50">{children}</div>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
