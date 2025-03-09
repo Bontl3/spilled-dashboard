@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
   ChevronDown,
   LogOut,
   User,
+  HelpCircle,
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -28,8 +29,11 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(3);
   const pathname = usePathname();
+  const router = useRouter();
 
+  // Track scroll for header shadow
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
@@ -39,7 +43,7 @@ export default function DashboardLayout({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Add click outside handler
+  // Add click outside handler for user menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -52,6 +56,11 @@ export default function DashboardLayout({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close sidebar on route change on mobile
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Query", href: "/query", icon: Search },
@@ -59,6 +68,22 @@ export default function DashboardLayout({
     { name: "Alerts", href: "/alerts", icon: AlertTriangle },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
+
+  const handleNavigation = (route: string) => {
+    // For desktop, we can navigate immediately
+    router.push(route);
+
+    // For mobile, we want to close the sidebar first
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const handleLogout = () => {
+    // In a real app, implement actual logout logic here
+    console.log("Logging out");
+    router.push("/");
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -77,13 +102,17 @@ export default function DashboardLayout({
         }`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-green-700">
-          <Link href="/" className="flex items-center">
+          <Link href="/dashboard" className="flex items-center">
             <div className="flex items-center justify-center w-8 h-8 rounded-md bg-white mr-2">
               <Activity className="h-5 w-5 text-green-800" />
             </div>
             <span className="text-xl font-semibold tracking-wide">Spilled</span>
           </Link>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden focus:outline-none focus:ring-2 focus:ring-green-500 rounded-md"
+            aria-label="Close sidebar"
+          >
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -110,11 +139,11 @@ export default function DashboardLayout({
             const Icon = item.icon;
 
             return (
-              <Link
+              <button
                 key={item.name}
-                href={item.href}
+                onClick={() => handleNavigation(item.href)}
                 className={cn(
-                  "flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors",
+                  "flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500",
                   isActive
                     ? "bg-green-700 text-white"
                     : "text-green-100 hover:bg-green-700/70"
@@ -122,19 +151,19 @@ export default function DashboardLayout({
               >
                 <Icon className="mr-3 h-5 w-5" />
                 {item.name}
-              </Link>
+              </button>
             );
           })}
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-green-700">
-          <Link
-            href="/"
-            className="flex items-center px-3 py-2.5 text-sm font-medium rounded-md text-green-100 hover:bg-green-700/70"
+          <button
+            onClick={handleLogout}
+            className="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-md text-green-100 hover:bg-green-700/70 focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <LogOut className="mr-3 h-5 w-5" />
             Log out
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -154,6 +183,7 @@ export default function DashboardLayout({
                   type="button"
                   className="text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 rounded-md lg:hidden"
                   onClick={() => setSidebarOpen(true)}
+                  aria-label="Open sidebar"
                 >
                   <Menu className="h-6 w-6" />
                 </button>
@@ -165,10 +195,24 @@ export default function DashboardLayout({
               </div>
 
               <div className="flex items-center space-x-4">
-                <button className="relative p-1 text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
-                  <span className="sr-only">View notifications</span>
+                <button
+                  className="relative p-1 text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500"
+                  aria-label={`View ${unreadNotifications} notifications`}
+                  onClick={() => router.push("/alerts")}
+                >
                   <Bell className="h-6 w-6" />
-                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">
+                      {unreadNotifications}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  className="relative p-1 text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500"
+                  aria-label="Help"
+                >
+                  <HelpCircle className="h-6 w-6" />
                 </button>
 
                 <div className="relative user-menu">
@@ -191,30 +235,36 @@ export default function DashboardLayout({
                       role="menu"
                       aria-orientation="vertical"
                     >
-                      <Link
-                        href="/profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setUserMenuOpen(false)}
+                      <button
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          router.push("/profile");
+                        }}
                         role="menuitem"
                       >
                         Your Profile
-                      </Link>
-                      <Link
-                        href="/settings"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setUserMenuOpen(false)}
+                      </button>
+                      <button
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          router.push("/settings");
+                        }}
                         role="menuitem"
                       >
                         Settings
-                      </Link>
-                      <Link
-                        href="/"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setUserMenuOpen(false)}
+                      </button>
+                      <button
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          handleLogout();
+                        }}
                         role="menuitem"
                       >
                         Sign out
-                      </Link>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -234,15 +284,24 @@ export default function DashboardLayout({
               Platform
             </p>
             <div className="flex space-x-4 mt-2 sm:mt-0">
-              <Link href="/privacy" className="hover:text-green-600">
+              <button
+                onClick={() => router.push("/privacy")}
+                className="hover:text-green-600"
+              >
                 Privacy Policy
-              </Link>
-              <Link href="/terms" className="hover:text-green-600">
+              </button>
+              <button
+                onClick={() => router.push("/terms")}
+                className="hover:text-green-600"
+              >
                 Terms of Service
-              </Link>
-              <Link href="/contact" className="hover:text-green-600">
+              </button>
+              <button
+                onClick={() => router.push("/contact")}
+                className="hover:text-green-600"
+              >
                 Contact
-              </Link>
+              </button>
             </div>
           </div>
         </footer>
