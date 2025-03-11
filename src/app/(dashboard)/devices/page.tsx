@@ -17,7 +17,7 @@ import {
 import ResultsTable from "@/components/visualizations/ResultsTable";
 import DashboardCard from "@/components/ui/DashboardCard";
 import { Button } from "@/components/ui/Button";
-import { generateMockDeviceData } from "@/lib/mockData";
+import { generateMockDevices } from "@/lib/mockData";
 import { formatBytes } from "@/lib/utils";
 
 export default function DevicesPage() {
@@ -29,7 +29,7 @@ export default function DevicesPage() {
     // Simulate loading devices data
     setLoading(true);
     setTimeout(() => {
-      setDevices(generateMockDeviceData(12));
+      setDevices(generateMockDevices(12));
       setLoading(false);
     }, 500);
   }, []);

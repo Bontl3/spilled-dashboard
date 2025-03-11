@@ -24,46 +24,10 @@ import ResultsTable from "@/components/visualizations/ResultsTable";
 import DashboardCard from "@/components/ui/DashboardCard";
 import { Button } from "@/components/ui/Button";
 import useNetworkData from "@/hooks/useNetworkData";
-import { QueryParams } from "@/types";
+import { QueryParams, TimeSeriesPoint } from "@/types";
 import { formatBytes, formatDateTime } from "@/lib/utils";
-
-// Simplified Toast notification implementation if you don't have the full component
-const useToast = () => {
-  const addToast = (toast: {
-    type: string;
-    title: string;
-    message?: string;
-    duration: number;
-  }) => {
-    // Simple alert for now - replace with your Toast component when available
-    const icon =
-      toast.type === "success" ? "✅" : toast.type === "error" ? "❌" : "ℹ️";
-    console.log(
-      `${icon} ${toast.title}${toast.message ? `: ${toast.message}` : ""}`
-    );
-    // If you implement the full Toast component, you would add the toast to state here
-  };
-
-  return { addToast };
-};
-
-// Simplified context menu implementation if you don't have the full component
-const useContextMenu = () => {
-  const showContextMenu = (e: React.MouseEvent, items: any[]) => {
-    // For now, just log that the context menu would be shown
-    console.log("Context menu would show with items:", items);
-    // If you implement the full context menu, you would show it here
-  };
-
-  const hideContextMenu = () => {
-    // If you implement the full context menu, you would hide it here
-  };
-
-  // This would normally be the JSX for the context menu
-  const contextMenuElement = null;
-
-  return { showContextMenu, hideContextMenu, contextMenuElement };
-};
+import { useToast } from "@/components/ui/Toast";
+import { useContextMenu, ContextMenuItem } from "@/components/ui/ContextMenu";
 
 export default function QueryPage() {
   const [queryParams, setQueryParams] = useState<QueryParams | null>(null);
@@ -89,14 +53,12 @@ export default function QueryPage() {
 
     try {
       await fetchData(params);
-
       const endTime = performance.now();
       setQueryStats({
         lastExecuted: new Date().toISOString(),
         executionTime: Math.round(endTime - startTime),
-        resultCount: 0, // Will be updated when data arrives
+        resultCount: 0, // Updated later when data arrives
       });
-
       addToast({
         type: "success",
         title: "Query executed successfully",
@@ -139,7 +101,6 @@ export default function QueryPage() {
     const query = savedQueries.find((q) => q.id === id);
     if (query) {
       setQueryParams(query.params);
-      // Pass the saved query to the query builder to load it
       handleRunQuery(query.params);
     }
   };
@@ -150,13 +111,11 @@ export default function QueryPage() {
     setLoadingExport(true);
 
     try {
-      // Create a CSV or JSON representation of the data
       let exportData: string;
 
       if (data.groupedData && data.groupedData.length > 0) {
-        // Convert to CSV
         const headers = Object.keys(data.groupedData[0]).join(",");
-        const rows = data.groupedData.map((row) =>
+        const rows = data.groupedData.map((row: Record<string, any>) =>
           Object.values(row)
             .map((value) =>
               typeof value === "string" && value.includes(",")
@@ -167,17 +126,15 @@ export default function QueryPage() {
         );
         exportData = [headers, ...rows].join("\n");
       } else if (data.timeSeriesData && data.timeSeriesData.length > 0) {
-        // Convert time series to CSV
         exportData =
           "time,value\n" +
           data.timeSeriesData
-            .map((point) => `${point.time},${point.value}`)
+            .map((point: TimeSeriesPoint) => `${point.time},${point.value}`)
             .join("\n");
       } else {
         throw new Error("No data available to export");
       }
 
-      // Create and download a file
       const blob = new Blob([exportData], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -207,9 +164,9 @@ export default function QueryPage() {
     }
   };
 
-  // Function to handle right-click on table rows
+  // Handle right-click on table rows
   const handleRowContextMenu = (e: React.MouseEvent, row: any) => {
-    e.preventDefault(); // Important to prevent the default context menu
+    e.preventDefault();
     showContextMenu(e, [
       {
         label: "Copy Row Data",
@@ -227,7 +184,6 @@ export default function QueryPage() {
         label: "Filter by This Value",
         icon: <Filter className="h-4 w-4" />,
         onClick: () => {
-          // Implement filtering logic
           addToast({
             type: "info",
             title: "Filter applied",
@@ -236,12 +192,15 @@ export default function QueryPage() {
           });
         },
       },
-      { divider: true },
+      {
+        label: "Divider",
+        onClick: () => {},
+        divider: true,
+      },
       {
         label: "View Details",
         icon: <Database className="h-4 w-4" />,
         onClick: () => {
-          // Implement view details logic
           addToast({
             type: "info",
             title: "View details",
@@ -330,7 +289,6 @@ export default function QueryPage() {
                       {formatDateTime(data.summary.timeRange.end)}
                     </p>
                   </div>
-
                   <div className="flex flex-wrap gap-6">
                     {data.summary.totalCount !== undefined && (
                       <div>
@@ -342,7 +300,6 @@ export default function QueryPage() {
                         </p>
                       </div>
                     )}
-
                     {data.summary.avgLatency !== undefined && (
                       <div>
                         <h4 className="text-sm font-medium text-gray-700 mb-1">
@@ -353,7 +310,6 @@ export default function QueryPage() {
                         </p>
                       </div>
                     )}
-
                     <div className="self-end">
                       <Button
                         variant="outline"
@@ -414,14 +370,12 @@ export default function QueryPage() {
                     {data.groupedData.length} rows
                   </div>
                 </div>
-
                 <div
                   className="relative"
-                  onContextMenu={(e) => e.preventDefault()} // Prevent default context menu on the container
+                  onContextMenu={(e) => e.preventDefault()}
                 >
                   <ResultsTable
-                    data={data.groupedData.map((row) => {
-                      // Format any byte values
+                    data={data.groupedData.map((row: Record<string, any>) => {
                       const formatted = { ...row };
                       if (formatted.bytes) {
                         formatted.bytes = formatBytes(formatted.bytes);
@@ -434,7 +388,7 @@ export default function QueryPage() {
                         .replace(/\b\w/g, (c) => c.toUpperCase()),
                       accessor: key,
                     }))}
-                    onRowContextMenu={handleRowContextMenu} // Pass the context menu handler
+                    onRowContextMenu={handleRowContextMenu}
                   />
                 </div>
               </div>
@@ -454,7 +408,6 @@ export default function QueryPage() {
                 )}
                 Export Results
               </Button>
-
               <Button
                 className="flex items-center"
                 variant="outline"
@@ -471,7 +424,6 @@ export default function QueryPage() {
                 <Share className="h-4 w-4 mr-2" />
                 Share Query
               </Button>
-
               <Button
                 className="flex items-center"
                 onClick={handleSaveQuery}
@@ -504,7 +456,7 @@ export default function QueryPage() {
         )}
       </DashboardCard>
 
-      {/* Context menu portal - this will be populated when the full context menu component is implemented */}
+      {/* Context menu portal */}
       {contextMenuElement}
     </div>
   );

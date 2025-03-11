@@ -1,6 +1,32 @@
 import { NetworkData, QueryParams, TimeSeriesPoint } from "@/types";
 
-export function generateMockData(queryParams: QueryParams): NetworkData {
+export interface QueryResult {
+  timeSeriesData?: TimeSeriesPoint[];
+  groupedData?: Record<string, any>[];
+  summary?: {
+    totalCount?: number;
+    avgLatency?: number;
+    timeRange?: {
+      start: string;
+      end: string;
+    };
+  };
+}
+
+interface ExtendedNetworkData extends NetworkData {
+  timeSeriesData?: TimeSeriesPoint[];
+  groupedData?: Record<string, any>[];
+  summary?: {
+    totalCount?: number;
+    avgLatency?: number;
+    timeRange?: {
+      start: string;
+      end: string;
+    };
+  };
+}
+
+export function generateMockData(queryParams: QueryParams): QueryResult {
   // Create randomized data based on the query parameters
   const timePoints = 24;
   const now = new Date();

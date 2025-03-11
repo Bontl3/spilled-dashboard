@@ -46,7 +46,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { ...toast, id }]);
 
-    // Auto remove after duration
+    // Auto remove after duration (unless Infinity)
     if (toast.duration !== Infinity) {
       setTimeout(() => {
         removeToast(id);
@@ -67,7 +67,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Hook to use toast
+// Hook to access the Toast context
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
@@ -76,18 +76,32 @@ export function useToast() {
   return context;
 }
 
+// Custom hook to provide helper functions for common toast types
+export function useToastHelpers() {
+  const { addToast } = useToast();
+  return {
+    success: (props: Omit<Toast, "id" | "type">) =>
+      addToast({ ...props, type: "success" }),
+    error: (props: Omit<Toast, "id" | "type">) =>
+      addToast({ ...props, type: "error" }),
+    warning: (props: Omit<Toast, "id" | "type">) =>
+      addToast({ ...props, type: "warning" }),
+    info: (props: Omit<Toast, "id" | "type">) =>
+      addToast({ ...props, type: "info" }),
+  };
+}
+
 // Toast container component
 function ToastContainer() {
   const { toasts, removeToast } = useToast();
 
-  // If there are no toasts, don't render anything
   if (toasts.length === 0) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 pointer-events-none flex flex-col items-end p-4 gap-2">
       <div className="max-h-screen overflow-hidden flex flex-col-reverse gap-2">
         {toasts.map((toast) => (
-          <Toast
+          <ToastComponent
             key={toast.id}
             toast={toast}
             onClose={() => removeToast(toast.id)}
@@ -100,7 +114,13 @@ function ToastContainer() {
 }
 
 // Individual toast component
-function Toast({ toast, onClose }: { toast: Toast; onClose: () => void }) {
+function ToastComponent({
+  toast,
+  onClose,
+}: {
+  toast: Toast;
+  onClose: () => void;
+}) {
   const { type, title, message, action } = toast;
 
   // Define icon and styles based on toast type
@@ -135,12 +155,9 @@ function Toast({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   };
 
   const { icon, className, iconClassName } = getToastStyles(type);
-
-  // Animation classes
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Trigger animation after mount
     const timer = setTimeout(() => setIsVisible(true), 10);
     return () => clearTimeout(timer);
   }, []);
@@ -158,7 +175,6 @@ function Toast({ toast, onClose }: { toast: Toast; onClose: () => void }) {
         <div className="flex-1 pt-0.5">
           <p className="text-sm font-medium">{title}</p>
           {message && <p className="mt-1 text-sm opacity-90">{message}</p>}
-
           {action && (
             <div className="mt-3">
               <button
@@ -189,24 +205,4 @@ function Toast({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   );
 }
 
-// For convenience, create helper functions
-export const toast = {
-  success: (props: Omit<Toast, "id" | "type">) => {
-    const { addToast } = useToast();
-    addToast({ ...props, type: "success" });
-  },
-  error: (props: Omit<Toast, "id" | "type">) => {
-    const { addToast } = useToast();
-    addToast({ ...props, type: "error" });
-  },
-  warning: (props: Omit<Toast, "id" | "type">) => {
-    const { addToast } = useToast();
-    addToast({ ...props, type: "warning" });
-  },
-  info: (props: Omit<Toast, "id" | "type">) => {
-    const { addToast } = useToast();
-    addToast({ ...props, type: "info" });
-  },
-};
-
-export default Toast;
+export default ToastComponent;

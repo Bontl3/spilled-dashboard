@@ -1,3 +1,4 @@
+// src/types/network.ts
 // Network entity types
 export interface Node {
   id: string;
@@ -44,39 +45,10 @@ export interface NetworkMetrics {
 }
 
 export interface NetworkData {
-  devices: Array<{
-    id: string;
-    name: string;
-    type: "router" | "switch" | "firewall" | "server";
-    location: string;
-    status: "active" | "inactive" | "maintenance";
-  }>;
-  metrics: Array<{
-    deviceId: string;
-    timestamp: string;
-    cpu: number;
-    memory: number;
-    bandwidth: {
-      inbound: number;
-      outbound: number;
-    };
-    temperature: number;
-  }>;
-  errors: Array<{
-    deviceId: string;
-    timestamp: string;
-    type: "CRC" | "Fragment" | "Collision";
-    severity: "low" | "medium" | "high";
-    count: number;
-  }>;
-  traffic: Array<{
-    deviceId: string;
-    timestamp: string;
-    protocol: "HTTP" | "HTTPS" | "TCP" | "UDP" | "ICMP";
-    bytes: number;
-    packets: number;
-    flows: number;
-  }>;
+  devices: Device[];
+  metrics: MetricData[];
+  errors: ErrorData[];
+  traffic: TrafficData[];
 }
 
 export interface Device {

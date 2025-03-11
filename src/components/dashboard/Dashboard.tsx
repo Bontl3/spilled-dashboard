@@ -1,45 +1,24 @@
+// src/components/dashboard/Dashboard.tsx
 "use client";
+
 import { useState, useEffect } from "react";
 import { QueryBuilder } from "@/components/query";
 import {
   generateCompleteNetworkData,
-  simulateQueryResults,
+  generateMockAlerts,
 } from "@/lib/mockData";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/ui/Card";
 import { Loader2 } from "lucide-react";
-import dynamic from "next/dynamic";
+import { LineChart } from "@/components/charts/LineChart";
+import { BarChart } from "@/components/charts/BarChart";
+import { PieChart } from "@/components/charts/PieChart";
 
 // Import types from our types directory
-import { NetworkData } from "@/types/network";
-import { QueryConfig, QueryResult } from "@/types/queries";
-import { LineChartData, BarChartData, PieChartData } from "@/types/charts";
+import { NetworkData } from "@/types";
+import { QueryConfig, QueryResult } from "@/types";
+import type { LineChartData, BarChartData, PieChartData } from "@/types";
 
-// Dynamically import charts with no SSR
-const LineChartComponent = dynamic(
-  () => import("@/components/charts/LineChart").then((mod) => mod.LineChart),
-  {
-    ssr: false,
-    loading: () => <ChartLoader />,
-  }
-);
-
-const BarChartComponent = dynamic(
-  () => import("@/components/charts/BarChart").then((mod) => mod.BarChart),
-  {
-    ssr: false,
-    loading: () => <ChartLoader />,
-  }
-);
-
-const PieChartComponent = dynamic(
-  () => import("@/components/charts/PieChart").then((mod) => mod.PieChart),
-  {
-    ssr: false,
-    loading: () => <ChartLoader />,
-  }
-);
-
-// Loading components
+// Loader components
 function ChartLoader() {
   return (
     <div className="h-96 flex items-center justify-center">
@@ -57,36 +36,6 @@ function LoadingCard() {
     </Card>
   );
 }
-
-// Type guard functions
-const isLineChartData = (
-  data: any[]
-): data is Array<{
-  time: string;
-  inbound: number;
-  outbound: number;
-  total: number;
-}> => {
-  return data.every(
-    (item) =>
-      "time" in item &&
-      "inbound" in item &&
-      "outbound" in item &&
-      "total" in item
-  );
-};
-
-const isBarChartData = (
-  data: any[]
-): data is Array<{ label: string; value: number }> => {
-  return data.every((item) => "label" in item && "value" in item);
-};
-
-const isPieChartData = (
-  data: any[]
-): data is Array<{ type: string; value: number }> => {
-  return data.every((item) => "type" in item && "value" in item);
-};
 
 // Function to process network metrics from the raw NetworkData
 function processNetworkMetrics(networkData: NetworkData | null) {
@@ -181,9 +130,29 @@ export function Dashboard() {
     setError(null);
 
     try {
-      const results = await simulateQueryResults(config, networkData);
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // In a real app, this would call an API endpoint
+      // For now, create a simple simulated result
+      const result: QueryResult = {
+        visualization: config.visualization,
+        data: {
+          labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+          datasets: [
+            {
+              label: config.query.metrics[0],
+              data: [65, 59, 80, 81, 56, 55],
+              backgroundColor: "#4f46e5",
+              borderColor: "#4f46e5",
+              fill: false,
+            },
+          ],
+        },
+      };
+
       setQueryConfig(config);
-      setQueryResults(results);
+      setQueryResults(result);
     } catch (err) {
       console.error("Query execution error:", err);
       setError(
@@ -196,73 +165,49 @@ export function Dashboard() {
     }
   };
 
-  // Transform data for LineChart component
-  const transformToLineChartData = (results: QueryResult): LineChartData[] => {
-    return results.data.labels.map((time, index) => {
-      // Initialize data point
-      const dataPoint: LineChartData = {
-        time,
-        inbound: 0,
-        outbound: 0,
-        total: 0,
-      };
-
-      // Map datasets to properties
-      results.data.datasets.forEach((dataset) => {
-        const label = dataset.label.toLowerCase();
-        if (label.includes("inbound")) {
-          dataPoint.inbound = dataset.data[index] || 0;
-        } else if (label.includes("outbound")) {
-          dataPoint.outbound = dataset.data[index] || 0;
-        } else if (label.includes("total")) {
-          dataPoint.total = dataset.data[index] || 0;
-        }
-      });
-
-      // Calculate total if not provided
-      if (dataPoint.total === 0) {
-        dataPoint.total = dataPoint.inbound + dataPoint.outbound;
-      }
-
-      return dataPoint;
-    });
-  };
-
-  // Transform data for BarChart component
-  const transformToBarChartData = (results: QueryResult): BarChartData[] => {
-    return results.data.labels.map((label, index) => {
-      // For bar charts, we typically use the first dataset
-      const dataset = results.data.datasets[0];
-      return {
-        label,
-        value: dataset?.data[index] || 0,
-      };
-    });
-  };
-
-  // Transform data for PieChart component
-  const transformToPieChartData = (results: QueryResult): PieChartData[] => {
-    return results.data.labels.map((type, index) => {
-      // For pie charts, we typically use the first dataset
-      const dataset = results.data.datasets[0];
-      return {
-        type,
-        value: dataset?.data[index] || 0,
-      };
-    });
-  };
-
+  // Render the appropriate chart based on the visualization type
   const renderChart = (results: QueryResult) => {
+    if (!results) return null;
+
     switch (results.visualization) {
       case "line":
-        const lineData = transformToLineChartData(results);
-        return <LineChartComponent data={lineData} />;
+        const lineData: LineChartData[] = results.data.labels.map(
+          (time, index) => {
+            const dataset = results.data.datasets[0];
+            return {
+              time: time,
+              inbound: dataset.data[index],
+              outbound: 0, // Default value
+              total: dataset.data[index],
+            };
+          }
+        );
+        return <LineChart data={lineData} />;
+
       case "bar":
-        const barData = transformToBarChartData(results);
-        return <BarChartComponent data={barData} />;
+        const barData: BarChartData[] = results.data.labels.map(
+          (label, index) => {
+            const dataset = results.data.datasets[0];
+            return {
+              label,
+              value: dataset.data[index],
+            };
+          }
+        );
+        return <BarChart data={barData} />;
+
       case "pie":
-        const pieData = transformToPieChartData(results);
-        return <PieChartComponent data={pieData} />;
+        const pieData: PieChartData[] = results.data.labels.map(
+          (type, index) => {
+            const dataset = results.data.datasets[0];
+            return {
+              type,
+              value: dataset.data[index],
+            };
+          }
+        );
+        return <PieChart data={pieData} />;
+
       default:
         return null;
     }

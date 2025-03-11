@@ -123,6 +123,7 @@ export interface BandwidthData {
   inbound: number;
   outbound: number;
   total: number;
+  deviceId?: string;
 }
 
 // Mock Data Generators
@@ -534,7 +535,8 @@ function generateMockBandwidth(
         timestamp: new Date(now.getTime() - i * 3600000).toISOString(),
         inbound: Math.floor(Math.random() * 1000 * businessHoursFactor),
         outbound: Math.floor(Math.random() * 1000 * businessHoursFactor),
-        device: device.id,
+        deviceId: device.id,
+        total: Math.floor(Math.random() * 1000 * businessHoursFactor),
       });
     }
   });

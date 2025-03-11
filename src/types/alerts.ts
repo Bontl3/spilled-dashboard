@@ -1,3 +1,4 @@
+// src/types/alerts.ts
 export interface AlertDetails {
   ipAddress?: string;
   protocol?: string;
@@ -11,10 +12,6 @@ export interface Alert {
   timestamp: string | Date;
   source: string;
   type: string;
-  details?: {
-    ipAddress?: string;
-    protocol?: string;
-    port?: number;
-  };
+  details?: AlertDetails;
   acknowledged?: boolean;
 }

@@ -165,7 +165,7 @@ export default function DashboardPage() {
         >
           {data?.groupedData ? (
             <ResultsTable
-              data={data.groupedData.map((item) => ({
+              data={data.groupedData.map((item: Record<string, any>) => ({
                 ...item,
                 bytes: formatBytes(item.bytes),
               }))}

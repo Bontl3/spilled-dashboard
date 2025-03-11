@@ -120,57 +120,6 @@ export function ContextMenu({
   );
 }
 
-// Higher-order component to add context menu functionality
-export function withContextMenu<P extends object>(
-  Component: React.ComponentType<P>,
-  getMenuItems: (props: P) => ContextMenuItem[]
-) {
-  return function ContextMenuWrapper(props: P) {
-    const [contextMenu, setContextMenu] = useState<{
-      visible: boolean;
-      x: number;
-      y: number;
-    }>({
-      visible: false,
-      x: 0,
-      y: 0,
-    });
-
-    const handleContextMenu = (e: React.MouseEvent) => {
-      e.preventDefault();
-      setContextMenu({
-        visible: true,
-        x: e.clientX,
-        y: e.clientY,
-      });
-    };
-
-    const closeContextMenu = () => {
-      setContextMenu({
-        ...contextMenu,
-        visible: false,
-      });
-    };
-
-    return (
-      <>
-        <div onContextMenu={handleContextMenu}>
-          <Component {...props} />
-        </div>
-
-        {contextMenu.visible && (
-          <ContextMenu
-            items={getMenuItems(props)}
-            onClose={closeContextMenu}
-            x={contextMenu.x}
-            y={contextMenu.y}
-          />
-        )}
-      </>
-    );
-  };
-}
-
 // Hook for using context menu anywhere
 export function useContextMenu() {
   const [contextMenu, setContextMenu] = useState<{

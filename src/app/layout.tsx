@@ -1,5 +1,8 @@
+// src/app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
+import { ToastProvider } from "@/components/ui/Toast";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "Network Observability",
@@ -13,7 +16,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ToastProvider>{children}</ToastProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

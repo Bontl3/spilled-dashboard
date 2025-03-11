@@ -1,17 +1,16 @@
+// src/hooks/useNetworkData.tsx
 "use client";
 
 import { useState } from "react";
-import { NetworkData, QueryParams } from "@/types";
-import { generateMockData } from "@/lib/mockData";
+import { QueryParams } from "@/types";
+import { generateMockData } from "@/lib/mockData/simulators";
 
 export default function useNetworkData() {
-  const [data, setData] = useState<NetworkData | null>(null);
+  const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async (
-    queryParams: QueryParams
-  ): Promise<NetworkData | null> => {
+  const fetchData = async (queryParams: QueryParams): Promise<any | null> => {
     setLoading(true);
     setError(null);
 
@@ -25,6 +24,9 @@ export default function useNetworkData() {
       // const result = await response.json();
 
       // For demo purposes, we'll generate mock data directly
+      // Add a small delay to simulate network latency
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       const result = generateMockData(queryParams);
 
       setData(result);
